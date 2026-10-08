@@ -1,11 +1,9 @@
 # Feedback API
-
 Customer review analysis for restaurants and food businesses (English only).
 Your trained model + VADER + aspects + emotions + star rating, with an auto-generated reply,
 19 email templates and email sending (manual or automatic).
 
 ## 1. Add your model (one time)
-
 Copy from `F:\feedback-api\models\` into this project's `models\` folder:
 
 - `feedback-model.pkl`
@@ -124,7 +122,6 @@ Send `subject` and `body` only when the admin has edited the email.
 Placeholders: `{customer_name}` `{business_name}` `{reply}` `{coupon_code}` `{review_link}` `{business_phone}`
 
 ## 5. Templates (19 built in)
-
 | Category | Template IDs |
 |---|---|
 | General | ai-reply |
@@ -143,7 +140,6 @@ When `AUTO_SEND=true` and the review has an email:
 A request can override the setting with `"auto_send": true` or `false`.
 
 ## 7. Environment variables
-
 ```
 API_KEY=long-secret-key
 ALLOWED_ORIGINS=*
@@ -189,5 +185,4 @@ const data = await res.json();
 ```
 
 ## Versions (must match training)
-
 Python 3.13, scikit-learn 1.8.0, numpy 2.3.5, joblib 1.5.2
