@@ -18,7 +18,7 @@ Email:
   POST /send-email       send a template email (admin can override subject / body)
   GET  /health           status
 
-All endpoints except / and /health need header:  x-api-key: <API_KEY>
+All endpoints except /, /demo, /health and /docs need header:  x-api-key: <API_KEY>
 """
 import logging
 import os
@@ -27,15 +27,18 @@ import secrets
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
+import gradio as gr
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, field_validator
 
 from .analyzer import FeedbackAnalyzer
 from .email_templates import CATEGORIES, TemplateStore, recommend_template
 from .insights import satisfaction_insights
 from .mailer import send_mail, smtp_configured
+from .demo import build_demo
 from .replies import generate_admin_suggestion, generate_draft_reply
 
 load_dotenv()
@@ -45,7 +48,7 @@ log = logging.getLogger("feedback-api")
 API_KEY = os.getenv("API_KEY", "")
 MODEL_DIR = os.getenv("MODEL_DIR", "models")
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
-DEFAULT_BUSINESS = os.getenv("BUSINESS_NAME", "") or None
+DEFAULT_BUSINESS = os.getenv("BUSINESS_NAME") or "Our Restaurant"
 AUTO_SEND = os.getenv("AUTO_SEND", "false").lower() == "true"
 AUTO_SEND_LABELS = {x.strip() for x in os.getenv("AUTO_SEND_LABELS", "positive").split(",") if x.strip()}
 
@@ -57,7 +60,7 @@ STATE = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if not API_KEY:
-        log.warning("API_KEY is not set. Set it in .env or Dokploy environment variables!")
+        log.warning("API_KEY is not set. Set it in .env or the host environment variables.")
     STATE["analyzer"] = FeedbackAnalyzer(MODEL_DIR)
     STATE["templates"] = TemplateStore()
     log.info("Model loaded from '%s' (stacked=%s) | SMTP configured: %s | auto send: %s",
@@ -88,8 +91,8 @@ def _check_email(v):
 class ReviewIn(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, examples=["Biryani was delicious but delivery was late"])
     rating: Optional[float] = Field(None, ge=1, le=5, description="Star rating 1-5 (optional)")
-    customer_name: Optional[str] = Field(None, max_length=100, examples=["Rahul"])
-    business_name: Optional[str] = Field(None, max_length=100, examples=["Spice Hub"])
+    customer_name: Optional[str] = Field(None, max_length=100, examples=["Alex"])
+    business_name: Optional[str] = Field(None, max_length=100, examples=["Our Restaurant"])
     email: Optional[str] = Field(None, max_length=200, description="Customer email (needed for auto email)")
     phone: Optional[str] = Field(None, max_length=30, description="Customer phone (saved, not used for sending)")
     auto_send: Optional[bool] = Field(None, description="Override AUTO_SEND for this request")
@@ -147,7 +150,7 @@ class EmailFields(BaseModel):
 
 class SendEmailIn(EmailFields):
     template_id: str = Field(..., examples=["apology-coupon"])
-    to: str = Field(..., max_length=200, examples=["customer@gmail.com"])
+    to: str = Field(..., max_length=200, examples=["customer@example.com"])
 
     @field_validator("to")
     @classmethod
@@ -226,9 +229,9 @@ def build_email(tid: str, e: EmailFields) -> dict:
 
 
 # ---------------- routes: basic ----------------
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def root():
-    return {"name": "Feedback API", "version": "1.1.0", "docs": "/docs", "health": "/health"}
+    return RedirectResponse(url="/demo")
 
 
 @app.get("/health")
@@ -327,3 +330,31 @@ def send_email(e: SendEmailIn):
     if res["status"] != "sent":
         raise HTTPException(status_code=502, detail=f"Email failed: {res.get('reason')}")
     return {**res, "template_id": e.template_id, "subject": mail["subject"], "mode": "manual"}
+
+# ---------------- public demo (no API key, no email) ----------------
+def demo_analyze(text, rating):
+    text = (text or "").strip()
+    if not text:
+        return "Please enter a review.", "", "", "", ""
+    rating_val = None
+    if rating not in (None, ""):
+        try:
+            rating_val = float(rating)
+        except (TypeError, ValueError):
+            rating_val = None
+        if rating_val is not None and not (1 <= rating_val <= 5):
+            rating_val = None
+    if STATE.get("analyzer") is None:
+        return "Model is still loading. Please try again.", "", "", "", ""
+    a = analyse(text, rating_val, None, DEFAULT_BUSINESS)
+    aspects = a.get("aspects") or {}
+    aspects_txt = ", ".join(f"{k}: {v}" for k, v in aspects.items()) or "None detected"
+    emotions = a.get("emotions") or []
+    emotions_txt = ", ".join(emotions) or "None detected"
+    stars = a.get("rating")
+    star_txt = f"{stars:g} / 5" if stars is not None else "No rating given"
+    return a.get("final_label") or "", star_txt, aspects_txt, emotions_txt, a.get("suggested_reply") or ""
+
+
+
+app = gr.mount_gradio_app(app, build_demo(demo_analyze), path="/demo")

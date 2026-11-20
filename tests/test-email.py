@@ -46,19 +46,19 @@ def run():
         print("✅ create / duplicate 409 / edit template ok")
 
         p = c.post("/templates/apology-coupon/preview", headers=H,
-                   json={"customer_name": "Rahul", "business_name": "Spice Hub", "coupon_code": "SORRY20",
+                   json={"customer_name": "Alex", "business_name": "Our Restaurant", "coupon_code": "SORRY20",
                          "review_text": "Delivery was late but the food was great", "rating": 3}).json()
         print("✅ preview:\n   Subject:", p["subject"], "\n   " + p["body"].replace("\n", "\n   "))
 
         r = c.post("/send-email", headers=H, json={
-            "template_id": "apology-coupon", "to": "rahul@gmail.com", "customer_name": "Rahul",
-            "business_name": "Spice Hub", "reply": "Sorry about the late delivery.", "coupon_code": "SORRY20"})
+            "template_id": "apology-coupon", "to": "customer@example.com", "customer_name": "Alex",
+            "business_name": "Our Restaurant", "reply": "Sorry about the late delivery.", "coupon_code": "SORRY20"})
         assert r.status_code == 200 and r.json()["status"] == "sent", r.text
         print("✅ /send-email manual:", r.json()["status"], "->", SENT[-1]["to"], "|", SENT[-1]["subject"])
 
         r = c.post("/send-email", headers=H, json={
-            "template_id": "thank-you", "to": "rahul@gmail.com",
-            "subject": "Edited by admin", "body": "Hi Rahul,\n\nThis whole text was edited by admin."})
+            "template_id": "thank-you", "to": "customer@example.com",
+            "subject": "Edited by admin", "body": "Hi Alex,\n\nThis whole text was edited by admin."})
         assert SENT[-1]["subject"] == "Edited by admin" and "edited by admin" in SENT[-1]["text"]
         print("✅ admin edited subject/body sent as-is")
 
@@ -67,10 +67,10 @@ def run():
 
         before = len(SENT)
         a = c.post("/analyze", headers=H, json={"text": "The biryani was absolutely delicious, will order again!",
-                                                "rating": 5, "customer_name": "Priya", "email": "priya@gmail.com"}).json()
+                                                "rating": 5, "customer_name": "Sam", "email": "sam@example.com"}).json()
         print(f"✅ /analyze positive -> template {a['recommended_template']} | email {a['email_status']}")
         b = c.post("/analyze", headers=H, json={"text": "Food was cold and delivery was 1 hour late",
-                                                "rating": 1, "customer_name": "Amit", "email": "amit@gmail.com"}).json()
+                                                "rating": 1, "customer_name": "Jordan", "email": "jordan@example.com"}).json()
         print(f"✅ /analyze negative -> template {b['recommended_template']} | email {b['email_status']}")
         n = c.post("/analyze", headers=H, json={"text": "good", "rating": 5}).json()
         print(f"✅ /analyze no email -> {n['email_status']}")

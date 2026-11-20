@@ -172,7 +172,7 @@ class TemplateStore:
             raise KeyError("missing")
         v = _Safe({
             "customer_name": values.get("customer_name") or "there",
-            "business_name": values.get("business_name") or os.getenv("BUSINESS_NAME") or "The",
+            "business_name": values.get("business_name") or os.getenv("BUSINESS_NAME") or "Our Restaurant",
             "reply": values.get("reply") or "",
             "coupon_code": values.get("coupon_code") or os.getenv("DEFAULT_COUPON", "THANKYOU10"),
             "review_link": values.get("review_link") or os.getenv("REVIEW_LINK", ""),

@@ -48,7 +48,7 @@ def main_test():
 
         for i, (text, rating) in enumerate(REVIEWS, 1):
             res = c.post("/analyze", headers=H,
-                         json={"text": text, "rating": rating, "customer_name": "Rahul", "business_name": "Spice Hub"})
+                         json={"text": text, "rating": rating, "customer_name": "Alex", "business_name": "Our Restaurant"})
             assert res.status_code == 200, f"{text} -> {res.status_code} {res.text}"
             a = res.json()
             star = f"{rating}★" if rating else "--"

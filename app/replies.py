@@ -135,7 +135,7 @@ def generate_draft_reply(a: dict, customer_name=None, business_name=None, seed=N
     r = _fmt_rating(rating) if rating is not None else None
 
     greeting = rng.choice(GREET_NAME).format(name=customer_name.strip()) if customer_name else rng.choice(GREET_ANON)
-    sign = f"Warm regards,\n{business_name.strip()} Team" if business_name else "Warm regards,\nThe Team"
+    sign = f"Warm regards,\n{business_name.strip()} Team" if business_name else "Warm regards,\nOur Restaurant Team"
 
     high_star_complaint = rating is not None and rating >= 4 and (text_label == "negative" or bool(neg))
     low_star_praise = rating is not None and rating <= 2 and text_label == "positive"

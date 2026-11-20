@@ -1,35 +1,51 @@
-# Feedback API
-Customer review analysis for restaurants and food businesses (English only).
-Your trained model + VADER + aspects + emotions + star rating, with an auto-generated reply,
-19 email templates and email sending (manual or automatic).
+---
+title: Restaurant Feedback AI
+emoji: 🍽️
+colorFrom: yellow
+colorTo: red
+sdk: docker
+app_port: 8000
+pinned: false
+short_description: Analyze restaurant reviews with a trained ML model
+---
 
-## 1. Add your model (one time)
-Copy from `F:\feedback-api\models\` into this project's `models\` folder:
+# Restaurant Feedback AI
 
-- `feedback-model.pkl`
-- `feedback-config.json`
+A small API and demo that analyses English restaurant reviews. It uses a trained scikit-learn model plus VADER to predict sentiment (positive, neutral, or negative), pick out aspects such as taste or delivery, tag emotions, and draft a reply.
 
-## 2. Run locally (Windows, Antigravity terminal)
+Live demo: https://huggingface.co/spaces/<HF_USERNAME>/restaurant-feedback-ai
+
+## How to use
+
+Open the live demo, or open http://localhost:8000/demo after a local run. Type a review, optionally add a star rating from 1 to 5, and click Submit. The demo does not need an API key and never sends email.
+
+API docs are at `/docs`. Health is at `/health`. API routes (except `/`, `/demo`, `/health` and `/docs`) need this header:
+
+`x-api-key: <your API_KEY>`
+
+## Run locally
 
 ```
 python -m venv venv
-venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 python -m textblob.download_corpora
-copy .env.example .env
+cp .env.example .env
 uvicorn app.main:app --reload
 ```
 
-Open http://localhost:8000/docs. Each endpoint has an `x-api-key` field: paste only the key value from your `.env`.
+Then open http://localhost:8000/demo or http://localhost:8000/docs.
 
-Auto tests (no server needed):
+Tests:
 
 ```
 python tests/test-api.py
 python tests/test-email.py
 ```
 
-## 3. Endpoints
+The trained files are already in `models/` (`feedback-model.pkl` is about 4.3 MB, not Git LFS). Versions must match training: Python 3.13, scikit-learn 1.8.0, numpy 2.3.5, joblib 1.5.2.
+
+## API endpoints
 
 ### Analysis
 
@@ -58,19 +74,19 @@ python tests/test-email.py
 |---|---|---|
 | POST | `/send-email` | Send an email using a template ID (admin can override subject or body) |
 
-Header for all except `/` and `/health`: `x-api-key: <your API_KEY>`
+Header for all except `/`, `/demo`, `/health` and `/docs`: `x-api-key: <your API_KEY>`
 
-## 4. Request examples
+## Request example
 
 **Analyze a review**
 
 ```json
 {
-  "text": "Biryani was great but delivery was late",
+  "text": "The pasta was great but delivery was late",
   "rating": 4,
-  "customer_name": "Rahul",
-  "business_name": "Mumbai Kitchen",
-  "email": "rahul@gmail.com"
+  "customer_name": "Alex",
+  "business_name": "Our Restaurant",
+  "email": "customer@example.com"
 }
 ```
 
@@ -83,106 +99,47 @@ Response includes `final_label`, `aspects`, `emotions`, `admin_suggestion`, `sug
 
 ```json
 {
-  "customer_name": "Rahul",
-  "business_name": "Mumbai Kitchen",
+  "customer_name": "Alex",
+  "business_name": "Our Restaurant",
   "coupon_code": "SORRY20",
   "review_text": "Delivery was late but the food was great",
   "rating": 3
 }
 ```
 
-**Send an email**
+## Environment variables
 
-```json
-{
-  "template_id": "delivery-apology",
-  "to": "rahul@gmail.com",
-  "customer_name": "Rahul",
-  "business_name": "Mumbai Kitchen",
-  "reply": "Sorry about the late delivery.",
-  "coupon_code": "SORRY20"
-}
-```
+On Hugging Face Spaces, add these in Settings. Only `API_KEY` is required for the demo and the API to work.
 
-If `reply` is empty and `review_text` is given, the AI writes the reply.
-Send `subject` and `body` only when the admin has edited the email.
+**Secret (required)**
 
-**Create a template**
+| Name | What it does | Example (not a real secret) |
+|---|---|---|
+| `API_KEY` | Auth for API routes (not needed for the demo) | `change-this-to-a-long-secret-key` |
 
-```json
-{
-  "id": "diwali-offer",
-  "name": "Diwali offer",
-  "category": "positive",
-  "subject": "Happy Diwali {customer_name}!",
-  "body": "Hi {customer_name},\n\n{reply}\n\nUse {coupon_code} this Diwali.\n\nWarm regards,\n{business_name} Team"
-}
-```
+**Optional variables**
 
-Placeholders: `{customer_name}` `{business_name}` `{reply}` `{coupon_code}` `{review_link}` `{business_phone}`
+| Name | Default | What it does |
+|---|---|---|
+| `ALLOWED_ORIGINS` | `*` | CORS origins, comma-separated |
+| `MODEL_DIR` | `models` | Folder with the pickle and config |
+| `BUSINESS_NAME` | `Our Restaurant` | Name used in replies and templates |
+| `TEMPLATES_FILE` | `data/templates.json` | Where edited templates are saved |
+| `AUTO_SEND` | `false` | Auto-send email after `/analyze` when an address is given. Keep this false on a public Space. |
+| `AUTO_SEND_LABELS` | `positive` | Labels that may be auto-sent |
+| `DEFAULT_COUPON` | `THANKYOU10` | Fallback coupon placeholder |
+| `REVIEW_LINK` | empty | Review link used in templates |
+| `BUSINESS_PHONE` | empty | Phone used in urgent templates |
 
-## 5. Templates (19 built in)
-| Category | Template IDs |
-|---|---|
-| General | ai-reply |
-| Positive | thank-you, request-review, loyalty-offer, referral-ask, welcome-back |
-| Neutral | follow-up, feedback-survey, try-again-offer, improvement-promise |
-| Negative | apology, apology-coupon, delivery-apology, quality-apology, refund-info, replacement-offer |
-| Urgent | urgent-callback, hygiene-response, manager-apology |
+**Optional SMTP secrets** (not available on Hugging Face Spaces)
 
-## 6. Auto email
+`SMTP_HOST`, `SMTP_PORT` (default 587), `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, `MAIL_REPLY_TO`.
 
-When `AUTO_SEND=true` and the review has an email:
+Hugging Face Spaces only allow outbound traffic on ports 80, 443 and 8080. SMTP ports 25, 465 and 587 are blocked, so `/send-email` will time out there even if these are set. Leave them unset on Spaces. The public demo never sends email. Without SMTP the API still works: `/send-email` returns 503 and auto email shows `skipped` or `pending`.
 
-- Review label is in `AUTO_SEND_LABELS` (default `positive`) and no manual review is needed: email is sent automatically with the recommended template.
-- Everything else stays `pending` so the admin can choose a template, edit and send with `/send-email`.
+## Deploy on Hugging Face Spaces
 
-A request can override the setting with `"auto_send": true` or `false`.
-
-## 7. Environment variables
-```
-API_KEY=long-secret-key
-ALLOWED_ORIGINS=*
-MODEL_DIR=models
-BUSINESS_NAME=Mumbai Kitchen
-
-SMTP_HOST=smtppro.zoho.com.au
-SMTP_PORT=587
-SMTP_USER=info@yourdomain.com
-SMTP_PASSWORD=app-password
-MAIL_FROM=Mumbai Kitchen <info@yourdomain.com>
-MAIL_REPLY_TO=
-AUTO_SEND=false
-AUTO_SEND_LABELS=positive
-DEFAULT_COUPON=THANKYOU10
-REVIEW_LINK=https://g.page/r/your-google-review-link
-BUSINESS_PHONE=+91 00000 00000
-```
-
-Without SMTP the API still works. `/send-email` returns 503 and auto email shows `skipped` or `pending`.
-After adding SMTP in Dokploy, redeploy.
-
-## 8. Deploy on Dokploy
-
-1. Push this folder to GitHub (including `models/`).
-2. Dokploy: Create Application, select the repo, branch `main`, Build Type: **Dockerfile**.
-3. Environment: add the variables from section 7.
-4. Port: **8000**. Add domain. Deploy.
-5. Check `https://your-domain/health`.
-6. Optional: to keep custom templates after redeploys, add a volume with mount path `/app/data`.
-
-## 9. Website call (from your backend, never put the key in browser JS)
-
-```js
-const res = await fetch("https://api.your-domain.com/analyze", {
-  method: "POST",
-  headers: { "Content-Type": "application/json", "x-api-key": process.env.FEEDBACK_API_KEY },
-  body: JSON.stringify({ text, rating, customer_name, business_name, email })
-});
-const data = await res.json();
-// data.final_label, data.aspects, data.admin_suggestion, data.suggested_reply,
-// data.recommended_template, data.email_status
-```
-
-## Versions (must match training)
-Python 3.13, scikit-learn 1.8.0, numpy 2.3.5, joblib 1.5.2
+1. Create a new Space at https://huggingface.co/new-space. Choose SDK **Docker**, hardware **CPU basic**, and visibility **Public**. Name it `restaurant-feedback-ai`.
+2. Push this repo to the Space, or connect the GitHub repo.
+3. In the Space, open Settings and add the `API_KEY` secret.
+4. Wait for the build. The Space opens on the demo (`/` redirects to `/demo`).

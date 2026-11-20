@@ -1,5 +1,5 @@
 """
-SMTP mailer (works with Zoho, Gmail, Hostinger, Resend SMTP, Brevo, etc.)
+SMTP mailer (works with common SMTP providers).
 
 Environment variables:
   SMTP_HOST, SMTP_PORT (587 or 465), SMTP_USER, SMTP_PASSWORD, MAIL_FROM, MAIL_REPLY_TO (optional)
